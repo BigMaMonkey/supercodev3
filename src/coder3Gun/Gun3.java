@@ -52,11 +52,11 @@ public class Gun3 {
 
     static class Pair {
         double score;
-        char[] buf;
+        String better;
 
-        public Pair(double score, char[] buf) {
+        public Pair(double score, String better) {
             this.score = score;
-            this.buf = buf;
+            this.better = better;
         }
     }
 
@@ -77,7 +77,7 @@ public class Gun3 {
         short[] lineBuffer;
 
         BufferedInputStream reader = new BufferedInputStream(System.in);
-        int c = 0, pos = 0;
+        int c = -1, pos = 0;
         do {
             while ((c = reader.read(buffer, 0, 2)) >= 0) {
                 if (buffer[0] == 0 && buffer[1] == 0 && (pos = byteBuffer.position()) % 4 == 0) {
@@ -88,9 +88,13 @@ public class Gun3 {
                 }
             }
 
+            if (pos == 0) {
+                break;
+            }
+
             lineBuffer = new short[pos / 2];
             byteBuffer.rewind().order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(lineBuffer);
-            byteBuffer.clear();
+            pos = 0;
             String result = exhaustiveSearch(lineBuffer);
             System.out.println(result);
 
@@ -98,6 +102,7 @@ public class Gun3 {
     }
 
     static String exhaustiveSearch(short[] pPosition) {
+
         String input = getInputStr(pPosition);
         char[] chars = input.toCharArray();
 
@@ -107,11 +112,11 @@ public class Gun3 {
 
         int k = nInputLen < 4 ? nInputLen : 4; //k为最大纠错字符数
 
-        Pair best = new Pair(score, chars);
+        Pair best = new Pair(score, input);
 
         exhaustiveSearch_i(pPosition, 0, k, chars, best);
 
-        return new String(best.buf);
+        return best.better;
     }
 
     // 穷举搜索，i是当前字符序号，k是还剩几个可替换的字符
@@ -123,14 +128,14 @@ public class Gun3 {
             double score = getScore(charLM, pPosition, buf);
             if (score > best.score) {
                 best.score = score;
-                best.buf = buf;
+                best.better = String.valueOf(buf);
             }
         } else {
             // 从当前位置开始不做纠错的分数
             double score = getScore(charLM, pPosition, buf);
             if (score > best.score) {
                 best.score = score;
-                best.buf = buf;
+                best.better = String.valueOf(buf);
             }
             // 递归向下
             for(; p < pPosition.length; p += 2) {
