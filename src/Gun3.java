@@ -47,6 +47,8 @@ public class Gun3 {
             {167, 273, 348, 177, 220, 262}
     };
 
+    static char[][] nearLetters = new char[26][26];
+
     static class Pair {
         double score;
         String better;
@@ -61,6 +63,8 @@ public class Gun3 {
     public static void main(String[] args) throws IOException, InterruptedException {
 
         // Thread.sleep(15000);
+
+        buildNearLetters();
 
         byte[] bytes = Files.readAllBytes(Path.of(args[0]));
 
@@ -99,6 +103,22 @@ public class Gun3 {
         } while (c > 0);
     }
 
+    private static void buildNearLetters() {
+        for (int i = 0; i < aanLetterEdge.length; i++) {
+            int idx = 0;
+            for (int j = 0; j < aanLetterEdge.length; j++) {
+                if (i == j) {
+                    continue;
+                }
+                if (!calcDistance(aanLetterEdge[i][4], aanLetterEdge[i][5],
+                        aanLetterEdge[j][4], aanLetterEdge[j][5])) {
+                    nearLetters[i][idx++] = (char) ('a' + j);
+                }
+            }
+            nearLetters[i][idx++] = '0';
+        }
+    }
+
     static String exhaustiveSearch(short[] pPosition) {
 
         String input = getInputStr(pPosition);
@@ -133,17 +153,14 @@ public class Gun3 {
             }
             for (; p < pPosition.length; p += 2) {
                 char bak = buf[p / 2];
-                for (char newCh = 'a'; newCh < bak; ++newCh) {
-                    if (filterByDistance(pPosition[p], pPosition[p + 1], newCh))
-                        continue;
-                    buf[p / 2] = newCh;
+                int idx = bak - 'a';
+                char[] nears = nearLetters[idx];
+                for (int i = 0; i < nears.length; i++) {
+                    buf[p / 2] = nears[i];
                     exhaustiveSearch_i(pPosition, p + 2, k - 1, buf, best);
-                }
-                for (char newCh = (char) (bak + 1); newCh <= 'z'; ++newCh) {
-                    if (filterByDistance(pPosition[p], pPosition[p + 1], newCh))
-                        continue;
-                    buf[p / 2] = newCh;
-                    exhaustiveSearch_i(pPosition, p + 2, k - 1, buf, best);
+                    if (nears[i + 1] == '0'){
+                        break;
+                    }
                 }
                 buf[p / 2] = bak;
             }
@@ -154,9 +171,14 @@ public class Gun3 {
     static boolean filterByDistance(short x1, short y1, char newCh) {
         int x2 = aanLetterEdge[newCh - 'a'][4];
         int y2 = aanLetterEdge[newCh - 'a'][5];
-        int temp = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
-        return temp > 50000;
+        return calcDistance(x1, y1, x2, y2);
     }
+
+    static boolean calcDistance(int x1, int y1, int x2, int y2) {
+        int temp = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+        return temp > 80000;
+    }
+
 
     static double getScore(float[] charLM, short[] pPosition, char[] str) {
         return getLogLMScore(charLM, str, str.length) * 4.5 + getLogPosScore(pPosition, str, str.length);
