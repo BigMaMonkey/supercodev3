@@ -135,7 +135,7 @@ public class Gun3 {
 
         exhaustiveSearch_i(pPosition, 0, k, chars, best);
 
-        for (int i = 0; i < logScores.length; i++) {
+        for (int i = 0; i < chars.length; i++) {
             Arrays.fill(logScores[i], 0);
         }
 
@@ -210,16 +210,7 @@ public class Gun3 {
     static double getLogPosScore(short[] p_pPosition, char[] szCor, int nSize) {
         double score = 0.0;
         for (int i = 0; i < nSize; i++) {
-
-            double charScore = 0;
-            int nCharNo = szCor[i] - 'a';
-            if (logScores[i][nCharNo] != 0) {
-                charScore = logScores[i][nCharNo];
-            } else {
-                charScore = getLogPosScoreByChar(p_pPosition, szCor[i], i);
-                logScores[i][nCharNo] = charScore;
-            }
-            score += charScore;
+            score += getLogPosScoreByChar(p_pPosition, szCor[i], i);;
         }
         return score;
     }
@@ -228,11 +219,15 @@ public class Gun3 {
         double score = 0.0;
         int nCharNo = c - 'a';
 
-        float sRelativeX = absToRelativeX(c, p_pPosition[i * 2]);
-        float sRelativeY = absToRelativeY(c, p_pPosition[i * 2 + 1]);
-
-        score += calculateGaussian(XStd[nCharNo], sRelativeX);
-        score += calculateGaussian(YStd[nCharNo], sRelativeY);
+        if (logScores[i][nCharNo] != 0) {
+            score = logScores[i][nCharNo];
+        } else {
+            float sRelativeX = absToRelativeX(c, p_pPosition[i * 2]);
+            float sRelativeY = absToRelativeY(c, p_pPosition[i * 2 + 1]);
+            score += calculateGaussian(XStd[nCharNo], sRelativeX);
+            score += calculateGaussian(YStd[nCharNo], sRelativeY);
+            logScores[i][nCharNo] = score;
+        }
         return score;
     }
 
