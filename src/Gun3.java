@@ -12,6 +12,8 @@ import java.util.Arrays;
 public class Gun3 {
 
     static float[] charLM;
+    static double[] modelScore;
+
     static int LINEBUFSIZE = 65 * 2 * 2;
 
     static double[] XStd = {14.89, 18.81, 19.56, 18.07, 19.13, 20.92, 18.05, 17.86, 18.56, 17.82, 19.42, 14.12, 19.83, 18.53, 19.38, 18.66, 18.30, 21.39, 19.01, 18.83, 19.44, 24.72, 19.16, 19.00, 17.83, 19.59};
@@ -51,6 +53,8 @@ public class Gun3 {
 
     static double[][] logScores = new double[63][26];
 
+    static char[] szNewCor = new char[128];
+
     static class Pair {
         double score;
         String better;
@@ -64,19 +68,16 @@ public class Gun3 {
 
         // Thread.sleep(15000);
 
+        szNewCor[0] = '`';
+        szNewCor[1] = '`';
+        szNewCor[2] = '`';
+
         buildNearLetters();
 
-        byte[] bytes = Files.readAllBytes(Path.of(args[0]));
-
-        charLM = new float[bytes.length / 4];
-        ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
-        byteBuffer.order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(charLM);
-        byteBuffer.clear();
-
-        bytes = null; // null array for gc
+        buildLmScores(args[0]);
 
         byte[] buffer = new byte[2];
-        byteBuffer = ByteBuffer.allocate(LINEBUFSIZE);
+        ByteBuffer byteBuffer = ByteBuffer.allocate(LINEBUFSIZE);
         short[] lineBuffer;
 
         BufferedInputStream reader = new BufferedInputStream(System.in);
@@ -103,6 +104,24 @@ public class Gun3 {
         } while (c > 0);
     }
 
+    static void buildLmScores(String arg) throws IOException {
+
+        byte[] bytes = Files.readAllBytes(Path.of(arg));
+
+        charLM = new float[bytes.length / 4];
+        ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
+        byteBuffer.order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(charLM);
+        byteBuffer.clear();
+
+        modelScore = new double[charLM.length];
+        for (int i = 0; i < charLM.length; i++) {
+            if (charLM[i] <= 0.0)
+                modelScore[i] = -1000.0;
+            else
+                modelScore[i] = Math.log(charLM[i]);
+        }
+    }
+
     static void buildNearLetters() {
         for (int i = 0; i < aanLetterEdge.length; i++) {
             int idx = 0;
@@ -125,7 +144,7 @@ public class Gun3 {
 
         char[] chars = input.toCharArray();
 
-        double score = getScore(charLM, pPosition, chars);
+        double score = getScore(modelScore, pPosition, chars);
 
         int nInputLen = chars.length;
 
@@ -144,13 +163,13 @@ public class Gun3 {
 
     static void exhaustiveSearch_i(short[] pPosition, int p, int k, char[] buf, Pair best) {
         if (k == 0 || p == pPosition.length) {
-            double score = getScore(charLM, pPosition, buf);
+            double score = getScore(modelScore, pPosition, buf);
             if (score > best.score) {
                 best.score = score;
                 best.better = String.valueOf(buf);
             }
         } else {
-            double score = getScore(charLM, pPosition, buf);
+            double score = getScore(modelScore, pPosition, buf);
             if (score > best.score) {
                 best.score = score;
                 best.better = String.valueOf(buf);
@@ -185,24 +204,17 @@ public class Gun3 {
         return temp > distance;
     }
 
-    static double getScore(float[] charLM, short[] pPosition, char[] str) {
-        return getLogLMScore(charLM, str, str.length) * 4.5 + getLogPosScore(pPosition, str, str.length);
+    static double getScore(double[] modelScore, short[] pPosition, char[] str) {
+        return getLogLMScore(modelScore, str, str.length) * 4.5 + getLogPosScore(pPosition, str, str.length);
     }
 
-    static double getLogLMScore(float[] model, char[] szCor, int nLen) {
+    static double getLogLMScore(double[] modelScore, char[] szCor, int nLen) {
         double score = 0.0;
-        char[] szNewCor = new char[128];
-        szNewCor[0] = '`';
-        szNewCor[1] = '`';
-        szNewCor[2] = '`';
-        System.arraycopy(szCor, 0, szNewCor, 3, nLen);
+
+        System.arraycopy(szCor,0, szNewCor ,3, nLen);
 
         for (int i = 0; i < nLen; ++i) {
-            float fLMScore = getLM(model, szNewCor[i], szNewCor[i + 1], szNewCor[i + 2], szNewCor[i + 3]);
-            if (fLMScore <= 0.0)
-                score += -1000.0;
-            else
-                score += Math.log(fLMScore);
+            score +=  getLM(modelScore, szNewCor, i);
         }
         return score;
     }
@@ -247,13 +259,13 @@ public class Gun3 {
         return -dX * dX / (2 * p_dSigma * p_dSigma) - Math.log(Math.sqrt(2 * dPI) * p_dSigma);
     }
 
-    static float getLM(float[] model, char preCh1, char preCh2, char preCh3, char curCh) {
+    static double getLM(double[] modelScore, char[] szCor, int i) {
         int idx;
-        idx = (preCh1 - '`') * (27 * 27 * 27);
-        idx += (preCh2 - '`') * (27 * 27);
-        idx += (preCh3 - '`') * 27;
-        idx += curCh - '`';
-        return model[idx];
+        idx = (szCor[i] - '`') * (27 * 27 * 27);
+        idx += (szCor[i + 1] - '`') * (27 * 27);
+        idx += (szCor[i + 2] - '`') * 27;
+        idx += szCor[i + 3] - '`';
+        return modelScore[idx];
     }
 
     static String getInputStr(short[] pPosition) {
