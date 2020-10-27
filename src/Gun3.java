@@ -7,6 +7,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 
 public class Gun3 {
 
@@ -16,7 +17,6 @@ public class Gun3 {
     static double[] XStd = {14.89, 18.81, 19.56, 18.07, 19.13, 20.92, 18.05, 17.86, 18.56, 17.82, 19.42, 14.12, 19.83, 18.53, 19.38, 18.66, 18.30, 21.39, 19.01, 18.83, 19.44, 24.72, 19.16, 19.00, 17.83, 19.59};
 
     static double[] YStd = {23.58, 22.49, 20.64, 20.76, 22.93, 19.67, 20.33, 20.77, 23.39, 22.42, 22.48, 24.03, 21.96, 22.31, 22.56, 23.68, 25.26, 20.85, 21.09, 21.13, 22.91, 25.41, 22.89, 21.53, 21.54, 22.51};
-
 
     static int[][] aanLetterEdge = {
             {0, 167, 519, 348, 83, 433},
@@ -58,7 +58,6 @@ public class Gun3 {
             this.better = better;
         }
     }
-
     public static void main(String[] args) throws IOException, InterruptedException {
 
         // Thread.sleep(15000);
@@ -124,7 +123,9 @@ public class Gun3 {
 
         char[] chars = input.toCharArray();
 
-        double score = getScore(charLM, pPosition, chars);
+        double[][] logScore = new double[pPosition.length / 2][26];
+
+        double score = getScore(charLM, pPosition, chars, logScore);
 
         int nInputLen = chars.length;
 
@@ -132,20 +133,24 @@ public class Gun3 {
 
         Pair best = new Pair(score, input);
 
-        exhaustiveSearch_i(pPosition, 0, k, chars, best);
+        exhaustiveSearch_i(pPosition, 0, k, chars, best, logScore);
+
+        for (int i = 0; i < logScore.length; i++) {
+            Arrays.fill(logScore[i], 0);
+        }
 
         return best.better;
     }
 
-    static void exhaustiveSearch_i(short[] pPosition, int p, int k, char[] buf, Pair best) {
+    static void exhaustiveSearch_i(short[] pPosition, int p, int k, char[] buf, Pair best, double[][] logScore) {
         if (k == 0 || p == pPosition.length) {
-            double score = getScore(charLM, pPosition, buf);
+            double score = getScore(charLM, pPosition, buf, logScore);
             if (score > best.score) {
                 best.score = score;
                 best.better = String.valueOf(buf);
             }
         } else {
-            double score = getScore(charLM, pPosition, buf);
+            double score = getScore(charLM, pPosition, buf, logScore);
             if (score > best.score) {
                 best.score = score;
                 best.better = String.valueOf(buf);
@@ -162,7 +167,7 @@ public class Gun3 {
                        continue;
                     }
                     buf[p / 2] = nears[i];
-                    exhaustiveSearch_i(pPosition, p + 2, k - 1, buf, best);
+                    exhaustiveSearch_i(pPosition, p + 2, k - 1, buf, best, logScore);
                 }
                 buf[p / 2] = bak;
             }
@@ -180,8 +185,8 @@ public class Gun3 {
         return temp > distance;
     }
 
-    static double getScore(float[] charLM, short[] pPosition, char[] str) {
-        return getLogLMScore(charLM, str, str.length) * 4.5 + getLogPosScore(pPosition, str, str.length);
+    static double getScore(float[] charLM, short[] pPosition, char[] str, double[][] logScore) {
+        return getLogLMScore(charLM, str, str.length) * 4.5 + getLogPosScore(pPosition, str, str.length, logScore);
     }
 
     static double getLogLMScore(float[] model, char[] szCor, int nLen) {
@@ -202,17 +207,32 @@ public class Gun3 {
         return score;
     }
 
-    static double getLogPosScore(short[] p_pPosition, char[] szCor, int nSize) {
+    static double getLogPosScore(short[] p_pPosition, char[] szCor, int nSize, double[][] logScore) {
         double score = 0.0;
         for (int i = 0; i < nSize; i++) {
             int nCharNo = szCor[i] - 'a';
+            if (logScore[i][nCharNo] != 0) {
+                score += logScore[i][nCharNo];
+            } else
+            {
+                double score1 = getScoreChar(p_pPosition, szCor[i], i);
+                logScore[i][nCharNo] = score1;
+                score += score1;
+            }
 
-            float sRelativeX = absToRelativeX(szCor[i], p_pPosition[i * 2]);
-            float sRelativeY = absToRelativeY(szCor[i], p_pPosition[i * 2 + 1]);
-
-            score += calculateGaussian(XStd[nCharNo], sRelativeX);
-            score += calculateGaussian(YStd[nCharNo], sRelativeY);
         }
+        return score;
+    }
+
+    private static double getScoreChar(short[] p_pPosition, char c, int i) {
+        double score = 0.0;
+        int nCharNo = c - 'a';
+
+        float sRelativeX = absToRelativeX(c, p_pPosition[i * 2]);
+        float sRelativeY = absToRelativeY(c, p_pPosition[i * 2 + 1]);
+
+        score += calculateGaussian(XStd[nCharNo], sRelativeX);
+        score += calculateGaussian(YStd[nCharNo], sRelativeY);
         return score;
     }
 
