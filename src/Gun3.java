@@ -7,6 +7,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 
 public class Gun3 {
 
@@ -48,6 +49,8 @@ public class Gun3 {
 
     static char[][] nearLetters = new char[26][26];
 
+    static double[][] logScores = new double[63][26];
+
     static class Pair {
         double score;
         String better;
@@ -57,7 +60,6 @@ public class Gun3 {
             this.better = better;
         }
     }
-
     public static void main(String[] args) throws IOException, InterruptedException {
 
         // Thread.sleep(15000);
@@ -133,6 +135,10 @@ public class Gun3 {
 
         exhaustiveSearch_i(pPosition, 0, k, chars, best);
 
+        for (int i = 0; i < logScores.length; i++) {
+            Arrays.fill(logScores[i], 0);
+        }
+
         return best.better;
     }
 
@@ -158,7 +164,7 @@ public class Gun3 {
                         break;
                     }
                     if (filterByDistance(pPosition[p], pPosition[p + 1], nears[i])) {
-                        continue;
+                       continue;
                     }
                     buf[p / 2] = nears[i];
                     exhaustiveSearch_i(pPosition, p + 2, k - 1, buf, best);
@@ -204,14 +210,29 @@ public class Gun3 {
     static double getLogPosScore(short[] p_pPosition, char[] szCor, int nSize) {
         double score = 0.0;
         for (int i = 0; i < nSize; i++) {
+
+            double charScore = 0;
             int nCharNo = szCor[i] - 'a';
-
-            float sRelativeX = absToRelativeX(szCor[i], p_pPosition[i * 2]);
-            float sRelativeY = absToRelativeY(szCor[i], p_pPosition[i * 2 + 1]);
-
-            score += calculateGaussian(XStd[nCharNo], sRelativeX);
-            score += calculateGaussian(YStd[nCharNo], sRelativeY);
+            if (logScores[i][nCharNo] != 0) {
+                charScore = logScores[i][nCharNo];
+            } else {
+                charScore = getLogPosScoreByChar(p_pPosition, szCor[i], i);
+                logScores[i][nCharNo] = charScore;
+            }
+            score += charScore;
         }
+        return score;
+    }
+
+    static double getLogPosScoreByChar(short[] p_pPosition, char c, int i) {
+        double score = 0.0;
+        int nCharNo = c - 'a';
+
+        float sRelativeX = absToRelativeX(c, p_pPosition[i * 2]);
+        float sRelativeY = absToRelativeY(c, p_pPosition[i * 2 + 1]);
+
+        score += calculateGaussian(XStd[nCharNo], sRelativeX);
+        score += calculateGaussian(YStd[nCharNo], sRelativeY);
         return score;
     }
 
