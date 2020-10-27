@@ -102,7 +102,7 @@ public class Gun3 {
         } while (c > 0);
     }
 
-    private static void buildNearLetters() {
+    static void buildNearLetters() {
         for (int i = 0; i < aanLetterEdge.length; i++) {
             int idx = 0;
             for (int j = 0; j < aanLetterEdge.length; j++) {
