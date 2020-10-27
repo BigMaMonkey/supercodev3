@@ -1,4 +1,4 @@
-// JavaOpt: -Xms100m -Xmx100m
+// JavaOpt: -Xms120m -Xmx120m
 // JaveVer: 11
 
 import java.io.BufferedInputStream;
@@ -122,6 +122,7 @@ public class Gun3 {
     static String exhaustiveSearch(short[] pPosition) {
 
         String input = getInputStr(pPosition);
+
         char[] chars = input.toCharArray();
 
         double score = getScore(charLM, pPosition, chars);
@@ -137,8 +138,7 @@ public class Gun3 {
         return best.better;
     }
 
-    static void exhaustiveSearch_i(short[] pPosition,
-                                   int p, int k, char[] buf, Pair best) {
+    static void exhaustiveSearch_i(short[] pPosition, int p, int k, char[] buf, Pair best) {
         if (k == 0 || p == pPosition.length) {
             double score = getScore(charLM, pPosition, buf);
             if (score > best.score) {
@@ -157,24 +157,20 @@ public class Gun3 {
                 char[] nears = nearLetters[idx];
                 for (int i = 0; i < nears.length; i++) {
                     if (nears[i] == '0') {
-                        System.out.println("error");
-                    }
-                    if (filterByDistance(pPosition[p], pPosition[p + 1], nears[i]))
-                        continue;
-                    buf[p / 2] = nears[i];
-                    exhaustiveSearch_i(pPosition, p + 2, k - 1, buf, best);
-                    if (nears[i + 1] == '0') {
                         break;
                     }
+                    if (filterByDistance(pPosition[p], pPosition[p + 1], nears[i])) {
+                       continue;
+                    }
+                    buf[p / 2] = nears[i];
+                    exhaustiveSearch_i(pPosition, p + 2, k - 1, buf, best);
                 }
                 buf[p / 2] = bak;
             }
         }
     }
 
-
     static boolean filterByDistance(short x1, short y1, char newCh) {
-        System.out.println(newCh);
         int x2 = aanLetterEdge[newCh - 'a'][4];
         int y2 = aanLetterEdge[newCh - 'a'][5];
         return calcDistance(x1, y1, x2, y2, 50000);
@@ -184,7 +180,6 @@ public class Gun3 {
         int temp = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
         return temp > distance;
     }
-
 
     static double getScore(float[] charLM, short[] pPosition, char[] str) {
         return getLogLMScore(charLM, str, str.length) * 4.5 + getLogPosScore(pPosition, str, str.length);
