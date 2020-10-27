@@ -111,7 +111,7 @@ public class Gun3 {
                     continue;
                 }
                 if (!calcDistance(aanLetterEdge[i][4], aanLetterEdge[i][5],
-                        aanLetterEdge[j][4], aanLetterEdge[j][5])) {
+                        aanLetterEdge[j][4], aanLetterEdge[j][5], 80000)) {
                     nearLetters[i][idx++] = (char) ('a' + j);
                 }
             }
@@ -156,9 +156,14 @@ public class Gun3 {
                 int idx = bak - 'a';
                 char[] nears = nearLetters[idx];
                 for (int i = 0; i < nears.length; i++) {
+                    if (nears[i] == '0') {
+                        System.out.println("error");
+                    }
+                    if (filterByDistance(pPosition[p], pPosition[p + 1], nears[i]))
+                        continue;
                     buf[p / 2] = nears[i];
                     exhaustiveSearch_i(pPosition, p + 2, k - 1, buf, best);
-                    if (nears[i + 1] == '0'){
+                    if (nears[i + 1] == '0') {
                         break;
                     }
                 }
@@ -169,14 +174,15 @@ public class Gun3 {
 
 
     static boolean filterByDistance(short x1, short y1, char newCh) {
+        System.out.println(newCh);
         int x2 = aanLetterEdge[newCh - 'a'][4];
         int y2 = aanLetterEdge[newCh - 'a'][5];
-        return calcDistance(x1, y1, x2, y2);
+        return calcDistance(x1, y1, x2, y2, 50000);
     }
 
-    static boolean calcDistance(int x1, int y1, int x2, int y2) {
+    static boolean calcDistance(int x1, int y1, int x2, int y2, int distance) {
         int temp = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
-        return temp > 80000;
+        return temp > distance;
     }
 
 
