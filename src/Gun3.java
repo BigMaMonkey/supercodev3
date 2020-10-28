@@ -219,6 +219,15 @@ public class Gun3 {
         return score;
     }
 
+    static double getLMScoreByChar(double[] modelScore, char[] szCor, int i) {
+        int idx;
+        idx = (szCor[i] - '`') * (27 * 27 * 27);
+        idx += (szCor[i + 1] - '`') * (27 * 27);
+        idx += (szCor[i + 2] - '`') * 27;
+        idx += szCor[i + 3] - '`';
+        return modelScore[idx];
+    }
+
     static double getLogPosScore(short[] p_pPosition, char[] szCor, int nSize) {
         double score = 0.0;
         for (int i = 0; i < nSize; i++) {
@@ -257,15 +266,6 @@ public class Gun3 {
         double dX = p_sPos;
         double dPI = Math.PI;
         return -dX * dX / (2 * p_dSigma * p_dSigma) - Math.log(Math.sqrt(2 * dPI) * p_dSigma);
-    }
-
-    static double getLMScoreByChar(double[] modelScore, char[] szCor, int i) {
-        int idx;
-        idx = (szCor[i] - '`') * (27 * 27 * 27);
-        idx += (szCor[i + 1] - '`') * (27 * 27);
-        idx += (szCor[i + 2] - '`') * 27;
-        idx += szCor[i + 3] - '`';
-        return modelScore[idx];
     }
 
     static String getInputStr(short[] pPosition) {
