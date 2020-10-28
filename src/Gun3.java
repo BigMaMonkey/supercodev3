@@ -66,6 +66,7 @@ public class Gun3 {
     }
 
     static class ScoreHolder {
+
         double[] chars;
         double score;
 
@@ -97,7 +98,7 @@ public class Gun3 {
 
         // Thread.sleep(15000);
 
-        long start = System.currentTimeMillis();
+//        long start = System.currentTimeMillis();
 
         szNewCor[0] = '`';
         szNewCor[1] = '`';
@@ -110,9 +111,6 @@ public class Gun3 {
         byte[] buffer = new byte[2];
         ByteBuffer byteBuffer = ByteBuffer.allocate(LINEBUFSIZE);
         short[] lineBuffer;
-
-//        double longCtr = 0, totalCtr = 0;
-//        int big = 0;
 
         BufferedInputStream reader = new BufferedInputStream(System.in);
         int c = -1, pos = 0;
@@ -132,36 +130,9 @@ public class Gun3 {
             lineBuffer = new short[pos / 2];
             byteBuffer.rewind().order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(lineBuffer);
             pos = 0;
-//            if (lineBuffer.length > 20 * 2) {
-//                longCtr++;
-//                if (lineBuffer.length > big) {
-//                    big = lineBuffer.length;
-//                }
-//                for (int i = 0; i < lineBuffer.length / 2; i += 2) {
-//                    System.out.printf("%04d", lineBuffer[i]);
-//                    System.out.print(':');
-//                    System.out.print(lineBuffer[i + 1]);
-//                    System.out.print(' ');
-//                }
-//                System.out.print('#');
-//                String result = getInputStr(lineBuffer);
-//                System.out.println(result);
-                String result = exhaustiveSearch(lineBuffer);
-                System.out.println(result);
-//            } else {
-////                String result = exhaustiveSearch(lineBuffer);
-////                System.out.println(result);
-//            }
-//
-//            totalCtr++;
-
-
+            String result = exhaustiveSearch(lineBuffer);
+            System.out.println(result);
         } while (c > 0);
-
-//        System.out.println(longCtr);
-//        System.out.println(totalCtr);
-//        System.out.println(1 - longCtr/totalCtr);
-//        System.out.println(big);
 
 //        long end = System.currentTimeMillis();
 //        System.out.println((end - start) / 1000);
@@ -226,19 +197,18 @@ public class Gun3 {
 
     static void exhaustiveSearch_i(short[] pPosition, int p, int k, char[] buf, Pair best, Holder holder) {
         if (k == 0 || p == pPosition.length) {
-            double score = holder.score;
-            if (score > best.score) {
-                best.score = score;
+            if (holder.score > best.score) {
+                best.score = holder.score;
                 best.better = String.valueOf(buf);
             }
         } else {
-            double score = holder.score;
-            if (score > best.score) {
-                best.score = score;
+            if (holder.score > best.score) {
+                best.score = holder.score;
                 best.better = String.valueOf(buf);
             }
             for (; p < pPosition.length; p += 2) {
-                char bak = buf[p / 2];
+                int cIdx = p / 2;
+                char bak = buf[cIdx];
                 int idx = bak - 'a';
                 char[] nears = nearLetters[idx];
                 for (int i = 0; i < nears.length; i++) {
@@ -248,12 +218,12 @@ public class Gun3 {
                     if (filterByDistance(pPosition[p], pPosition[p + 1], nears[i])) {
                        continue;
                     }
-                    buf[p / 2] = nears[i];
-                    changeScore(modelScores, pPosition, buf, holder, p / 2);
+                    buf[cIdx] = nears[i];
+                    changeScore(modelScores, pPosition, buf, holder, cIdx);
                     exhaustiveSearch_i(pPosition, p + 2, k - 1, buf, best, holder);
                 }
-                buf[p / 2] = bak;
-                changeScore(modelScores, pPosition, buf, holder, p / 2);
+                buf[cIdx] = bak;
+                changeScore(modelScores, pPosition, buf, holder, cIdx);
             }
         }
     }
@@ -270,8 +240,8 @@ public class Gun3 {
     }
 
     static void changeScore(double[] modelScore, short[] pPosition, char[] str, Holder  holder, int idx) {
-        changeLogPosScore(pPosition, str, holder.pos, idx);
         changeLogLMScore(modelScore, str, str.length, holder.lm, idx);
+        changeLogPosScore(pPosition, str, holder.pos, idx);
         holder.caleScore();
     }
 
@@ -286,9 +256,9 @@ public class Gun3 {
         for (int i = idx; i < idx + 4; ++i) {
             if (i >= nLen)
                 break;
-            double charScore =  getLMScoreByChar(modelScore, szNewCor, idx);
-            scoreHolder.score = scoreHolder.score - scoreHolder.chars[idx] + charScore;
-            scoreHolder.chars[idx] = charScore;
+            double charScore =  getLMScoreByChar(modelScore, szNewCor, i);
+            scoreHolder.score = scoreHolder.score - scoreHolder.chars[i] + charScore;
+            scoreHolder.chars[i] = charScore;
         }
     }
 
