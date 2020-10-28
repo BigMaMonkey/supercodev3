@@ -12,7 +12,7 @@ import java.util.Arrays;
 public class Gun3 {
 
     static float[] charLM;
-    static double[] modelScore;
+    static double[] modelScores;
 
     static int LINEBUFSIZE = 65 * 2 * 2;
 
@@ -74,7 +74,7 @@ public class Gun3 {
 
         buildNearLetters();
 
-        buildLmScores(args[0]);
+        buildModelScores(args[0]);
 
         byte[] buffer = new byte[2];
         ByteBuffer byteBuffer = ByteBuffer.allocate(LINEBUFSIZE);
@@ -104,7 +104,7 @@ public class Gun3 {
         } while (c > 0);
     }
 
-    static void buildLmScores(String arg) throws IOException {
+    static void buildModelScores(String arg) throws IOException {
 
         byte[] bytes = Files.readAllBytes(Path.of(arg));
 
@@ -113,12 +113,12 @@ public class Gun3 {
         byteBuffer.order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(charLM);
         byteBuffer.clear();
 
-        modelScore = new double[charLM.length];
+        modelScores = new double[charLM.length];
         for (int i = 0; i < charLM.length; i++) {
             if (charLM[i] <= 0.0)
-                modelScore[i] = -1000.0;
+                modelScores[i] = -1000.0;
             else
-                modelScore[i] = Math.log(charLM[i]);
+                modelScores[i] = Math.log(charLM[i]);
         }
     }
 
@@ -144,7 +144,7 @@ public class Gun3 {
 
         char[] chars = input.toCharArray();
 
-        double score = getScore(modelScore, pPosition, chars);
+        double score = getScore(modelScores, pPosition, chars);
 
         int nInputLen = chars.length;
 
@@ -163,13 +163,13 @@ public class Gun3 {
 
     static void exhaustiveSearch_i(short[] pPosition, int p, int k, char[] buf, Pair best) {
         if (k == 0 || p == pPosition.length) {
-            double score = getScore(modelScore, pPosition, buf);
+            double score = getScore(modelScores, pPosition, buf);
             if (score > best.score) {
                 best.score = score;
                 best.better = String.valueOf(buf);
             }
         } else {
-            double score = getScore(modelScore, pPosition, buf);
+            double score = getScore(modelScores, pPosition, buf);
             if (score > best.score) {
                 best.score = score;
                 best.better = String.valueOf(buf);
@@ -214,7 +214,7 @@ public class Gun3 {
         System.arraycopy(szCor,0, szNewCor ,3, nLen);
 
         for (int i = 0; i < nLen; ++i) {
-            score +=  getLM(modelScore, szNewCor, i);
+            score +=  getLMScoreByChar(modelScore, szNewCor, i);
         }
         return score;
     }
@@ -259,7 +259,7 @@ public class Gun3 {
         return -dX * dX / (2 * p_dSigma * p_dSigma) - Math.log(Math.sqrt(2 * dPI) * p_dSigma);
     }
 
-    static double getLM(double[] modelScore, char[] szCor, int i) {
+    static double getLMScoreByChar(double[] modelScore, char[] szCor, int i) {
         int idx;
         idx = (szCor[i] - '`') * (27 * 27 * 27);
         idx += (szCor[i + 1] - '`') * (27 * 27);
