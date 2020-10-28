@@ -64,9 +64,40 @@ public class Gun3 {
             this.better = better;
         }
     }
+
+    static class ScoreHolder {
+        double[] chars;
+        double score;
+
+        public ScoreHolder() {
+            this.score = 0;
+            this.chars = new double[63];
+        }
+    }
+
+    static class Holder {
+
+        ScoreHolder pos;
+        ScoreHolder lm;
+
+        double score;
+
+        public Holder(ScoreHolder lm, ScoreHolder pos) {
+            this.lm = lm;
+            this.pos = pos;
+            caleScore();
+        }
+
+        public void caleScore(){
+            score = pos.score + lm.score * 4.5;
+        }
+    }
+
     public static void main(String[] args) throws IOException, InterruptedException {
 
         // Thread.sleep(15000);
+
+        long start = System.currentTimeMillis();
 
         szNewCor[0] = '`';
         szNewCor[1] = '`';
@@ -79,6 +110,9 @@ public class Gun3 {
         byte[] buffer = new byte[2];
         ByteBuffer byteBuffer = ByteBuffer.allocate(LINEBUFSIZE);
         short[] lineBuffer;
+
+//        double longCtr = 0, totalCtr = 0;
+//        int big = 0;
 
         BufferedInputStream reader = new BufferedInputStream(System.in);
         int c = -1, pos = 0;
@@ -98,10 +132,39 @@ public class Gun3 {
             lineBuffer = new short[pos / 2];
             byteBuffer.rewind().order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(lineBuffer);
             pos = 0;
-            String result = exhaustiveSearch(lineBuffer);
-            System.out.println(result);
+//            if (lineBuffer.length > 20 * 2) {
+//                longCtr++;
+//                if (lineBuffer.length > big) {
+//                    big = lineBuffer.length;
+//                }
+//                for (int i = 0; i < lineBuffer.length / 2; i += 2) {
+//                    System.out.printf("%04d", lineBuffer[i]);
+//                    System.out.print(':');
+//                    System.out.print(lineBuffer[i + 1]);
+//                    System.out.print(' ');
+//                }
+//                System.out.print('#');
+//                String result = getInputStr(lineBuffer);
+//                System.out.println(result);
+                String result = exhaustiveSearch(lineBuffer);
+                System.out.println(result);
+//            } else {
+////                String result = exhaustiveSearch(lineBuffer);
+////                System.out.println(result);
+//            }
+//
+//            totalCtr++;
+
 
         } while (c > 0);
+
+//        System.out.println(longCtr);
+//        System.out.println(totalCtr);
+//        System.out.println(1 - longCtr/totalCtr);
+//        System.out.println(big);
+
+//        long end = System.currentTimeMillis();
+//        System.out.println((end - start) / 1000);
     }
 
     static void buildModelScores(String arg) throws IOException {
@@ -144,15 +207,15 @@ public class Gun3 {
 
         char[] chars = input.toCharArray();
 
-        double score = getScore(modelScores, pPosition, chars);
+        Holder holder = getScore(modelScores, pPosition, chars);
 
         int nInputLen = chars.length;
 
         int k = nInputLen < 4 ? nInputLen : 4;
 
-        Pair best = new Pair(score, input);
+        Pair best = new Pair(holder.score, input);
 
-        exhaustiveSearch_i(pPosition, 0, k, chars, best);
+        exhaustiveSearch_i(pPosition, 0, k, chars, best, holder);
 
         for (int i = 0; i < chars.length; i++) {
             Arrays.fill(logScores[i], 0);
@@ -161,15 +224,15 @@ public class Gun3 {
         return best.better;
     }
 
-    static void exhaustiveSearch_i(short[] pPosition, int p, int k, char[] buf, Pair best) {
+    static void exhaustiveSearch_i(short[] pPosition, int p, int k, char[] buf, Pair best, Holder holder) {
         if (k == 0 || p == pPosition.length) {
-            double score = getScore(modelScores, pPosition, buf);
+            double score = holder.score;
             if (score > best.score) {
                 best.score = score;
                 best.better = String.valueOf(buf);
             }
         } else {
-            double score = getScore(modelScores, pPosition, buf);
+            double score = holder.score;
             if (score > best.score) {
                 best.score = score;
                 best.better = String.valueOf(buf);
@@ -186,9 +249,11 @@ public class Gun3 {
                        continue;
                     }
                     buf[p / 2] = nears[i];
-                    exhaustiveSearch_i(pPosition, p + 2, k - 1, buf, best);
+                    changeScore(modelScores, pPosition, buf, holder, p / 2);
+                    exhaustiveSearch_i(pPosition, p + 2, k - 1, buf, best, holder);
                 }
                 buf[p / 2] = bak;
+                changeScore(modelScores, pPosition, buf, holder, p / 2);
             }
         }
     }
@@ -204,19 +269,43 @@ public class Gun3 {
         return temp > distance;
     }
 
-    static double getScore(double[] modelScore, short[] pPosition, char[] str) {
-        return getLogLMScore(modelScore, str, str.length) * 4.5 + getLogPosScore(pPosition, str, str.length);
+    static void changeScore(double[] modelScore, short[] pPosition, char[] str, Holder  holder, int idx) {
+        changeLogPosScore(pPosition, str, holder.pos, idx);
+        changeLogLMScore(modelScore, str, str.length, holder.lm, idx);
+        holder.caleScore();
     }
 
-    static double getLogLMScore(double[] modelScore, char[] szCor, int nLen) {
+    static Holder getScore(double[] modelScore, short[] pPosition, char[] str) {
+        return new Holder(getLogLMScore(modelScore, str, str.length), getLogPosScore(pPosition, str, str.length));
+    }
+
+    static void changeLogLMScore(double[] modelScore, char[] szCor, int nLen, ScoreHolder  scoreHolder, int idx) {
+
+        System.arraycopy(szCor,0, szNewCor ,3, nLen);
+
+        for (int i = idx; i < idx + 4; ++i) {
+            if (i >= nLen)
+                break;
+            double charScore =  getLMScoreByChar(modelScore, szNewCor, idx);
+            scoreHolder.score = scoreHolder.score - scoreHolder.chars[idx] + charScore;
+            scoreHolder.chars[idx] = charScore;
+        }
+    }
+
+    static ScoreHolder getLogLMScore(double[] modelScore, char[] szCor, int nLen) {
+
+        ScoreHolder scoreHolder = new ScoreHolder();
         double score = 0.0;
 
         System.arraycopy(szCor,0, szNewCor ,3, nLen);
 
         for (int i = 0; i < nLen; ++i) {
-            score +=  getLMScoreByChar(modelScore, szNewCor, i);
+            double charScore =  getLMScoreByChar(modelScore, szNewCor, i);
+            scoreHolder.chars[i] = charScore;
+            score += charScore;
         }
-        return score;
+        scoreHolder.score = score;
+        return scoreHolder;
     }
 
     static double getLMScoreByChar(double[] modelScore, char[] szCor, int i) {
@@ -228,12 +317,24 @@ public class Gun3 {
         return modelScore[idx];
     }
 
-    static double getLogPosScore(short[] p_pPosition, char[] szCor, int nSize) {
+    static void changeLogPosScore(short[] p_pPosition, char[] szCor, ScoreHolder  scoreHolder, int idx) {
+        double charScore =  getLogPosScoreByChar(p_pPosition, szCor[idx], idx);
+        scoreHolder.score = scoreHolder.score - scoreHolder.chars[idx] + charScore;
+        scoreHolder.chars[idx] = charScore;
+    }
+
+    static ScoreHolder getLogPosScore(short[] p_pPosition, char[] szCor, int nSize) {
+
+        ScoreHolder scoreHolder = new ScoreHolder();
         double score = 0.0;
+
         for (int i = 0; i < nSize; i++) {
-            score += getLogPosScoreByChar(p_pPosition, szCor[i], i);;
+            double charScore =  getLogPosScoreByChar(p_pPosition, szCor[i], i);
+            scoreHolder.chars[i] = charScore;
+            score += charScore;
         }
-        return score;
+        scoreHolder.score = score;
+        return scoreHolder;
     }
 
     static double getLogPosScoreByChar(short[] p_pPosition, char c, int i) {
