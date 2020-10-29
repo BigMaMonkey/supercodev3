@@ -51,7 +51,9 @@ public class Gun3 {
 
     static char[][] nearLetters = new char[26][26];
 
-    static double[][] logScores = new double[63][26];
+    static double[][] logScores;
+
+    static String preInput = " ";
 
     static char[] szNewCor = new char[128];
 
@@ -78,8 +80,8 @@ public class Gun3 {
 
     static class Holder {
 
-        ScoreHolder pos;
         ScoreHolder lm;
+        ScoreHolder pos;
 
         double score;
 
@@ -89,14 +91,44 @@ public class Gun3 {
             caleScore();
         }
 
-        public void caleScore(){
+        void caleScore() {
             score = pos.score + lm.score * 4.5;
+        }
+    }
+
+    static class HolderBak {
+
+        double[] lm;
+        double pos;
+
+        double lmScore;
+
+        double posScore;
+
+        double score;
+
+        public HolderBak(Holder holder, int idx) {
+            lm = new double[4];
+            System.arraycopy(holder.lm.chars, idx, lm, 0, 4);
+            pos = holder.pos.chars[idx];
+            lmScore = holder.lm.score;
+            posScore = holder.pos.score;
+            score = holder.score;
+        }
+
+
+        void Restore(Holder cln, int idx) {
+            cln.score = this.score;
+            cln.lm.score = this.lmScore;
+            cln.pos.score = this.posScore;
+            System.arraycopy(lm, 0, cln.lm.chars, idx, 4);
+            cln.pos.chars[idx] = pos;
         }
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
-        // Thread.sleep(15000);
+//        Thread.sleep(15000);
 
 //        long start = System.currentTimeMillis();
 
@@ -130,8 +162,10 @@ public class Gun3 {
             lineBuffer = new short[pos / 2];
             byteBuffer.rewind().order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(lineBuffer);
             pos = 0;
+
             String result = exhaustiveSearch(lineBuffer);
             System.out.println(result);
+
         } while (c > 0);
 
 //        long end = System.currentTimeMillis();
@@ -184,13 +218,13 @@ public class Gun3 {
 
         int k = nInputLen < 4 ? nInputLen : 4;
 
+        logScores = new double[63][26];
+
         Pair best = new Pair(holder.score, input);
 
         exhaustiveSearch_i(pPosition, 0, k, chars, best, holder);
 
-        for (int i = 0; i < chars.length; i++) {
-            Arrays.fill(logScores[i], 0);
-        }
+        preInput = input;
 
         return best.better;
     }
@@ -209,6 +243,7 @@ public class Gun3 {
             for (; p < pPosition.length; p += 2) {
                 int cIdx = p / 2;
                 char bak = buf[cIdx];
+                HolderBak bakHolder = new HolderBak(holder, cIdx);
                 int idx = bak - 'a';
                 char[] nears = nearLetters[idx];
                 for (int i = 0; i < nears.length; i++) {
@@ -216,14 +251,15 @@ public class Gun3 {
                         break;
                     }
                     if (filterByDistance(pPosition[p], pPosition[p + 1], nears[i])) {
-                       continue;
+                        continue;
                     }
                     buf[cIdx] = nears[i];
                     changeScore(modelScores, pPosition, buf, holder, cIdx);
                     exhaustiveSearch_i(pPosition, p + 2, k - 1, buf, best, holder);
                 }
                 buf[cIdx] = bak;
-                changeScore(modelScores, pPosition, buf, holder, cIdx);
+//                changeScore(modelScores, pPosition, buf, holder, cIdx);
+                bakHolder.Restore(holder, cIdx);
             }
         }
     }
@@ -239,38 +275,40 @@ public class Gun3 {
         return temp > distance;
     }
 
-    static void changeScore(double[] modelScore, short[] pPosition, char[] str, Holder  holder, int idx) {
-        changeLogLMScore(modelScore, str, str.length, holder.lm, idx);
+    static void changeScore(double[] modelScore, short[] pPosition, char[] str, Holder holder, int idx) {
+        changeLogLMScore(modelScore, str, holder.lm, idx);
         changeLogPosScore(pPosition, str, holder.pos, idx);
         holder.caleScore();
     }
 
     static Holder getScore(double[] modelScore, short[] pPosition, char[] str) {
-        return new Holder(getLogLMScore(modelScore, str, str.length), getLogPosScore(pPosition, str, str.length));
+        return new Holder(getLogLMScore(modelScore, str), getLogPosScore(pPosition, str));
     }
 
-    static void changeLogLMScore(double[] modelScore, char[] szCor, int nLen, ScoreHolder  scoreHolder, int idx) {
+    static void changeLogLMScore(double[] modelScore, char[] szCor, ScoreHolder scoreHolder, int idx) {
 
-        System.arraycopy(szCor,0, szNewCor ,3, nLen);
+        int nLen = szCor.length;
+        System.arraycopy(szCor, 0, szNewCor, 3, nLen);
 
         for (int i = idx; i < idx + 4; ++i) {
             if (i >= nLen)
                 break;
-            double charScore =  getLMScoreByChar(modelScore, szNewCor, i);
+            double charScore = getLMScoreByChar(modelScore, szNewCor, i);
             scoreHolder.score = scoreHolder.score - scoreHolder.chars[i] + charScore;
             scoreHolder.chars[i] = charScore;
         }
     }
 
-    static ScoreHolder getLogLMScore(double[] modelScore, char[] szCor, int nLen) {
+    static ScoreHolder getLogLMScore(double[] modelScore, char[] szCor) {
 
         ScoreHolder scoreHolder = new ScoreHolder();
         double score = 0.0;
 
-        System.arraycopy(szCor,0, szNewCor ,3, nLen);
+        int nLen = szCor.length;
+        System.arraycopy(szCor, 0, szNewCor, 3, nLen);
 
         for (int i = 0; i < nLen; ++i) {
-            double charScore =  getLMScoreByChar(modelScore, szNewCor, i);
+            double charScore = getLMScoreByChar(modelScore, szNewCor, i);
             scoreHolder.chars[i] = charScore;
             score += charScore;
         }
@@ -287,19 +325,20 @@ public class Gun3 {
         return modelScore[idx];
     }
 
-    static void changeLogPosScore(short[] p_pPosition, char[] szCor, ScoreHolder  scoreHolder, int idx) {
-        double charScore =  getLogPosScoreByChar(p_pPosition, szCor[idx], idx);
+    static void changeLogPosScore(short[] p_pPosition, char[] szCor, ScoreHolder scoreHolder, int idx) {
+        double charScore = getLogPosScoreByChar(p_pPosition, szCor[idx], idx);
         scoreHolder.score = scoreHolder.score - scoreHolder.chars[idx] + charScore;
         scoreHolder.chars[idx] = charScore;
     }
 
-    static ScoreHolder getLogPosScore(short[] p_pPosition, char[] szCor, int nSize) {
+    static ScoreHolder getLogPosScore(short[] p_pPosition, char[] szCor) {
 
         ScoreHolder scoreHolder = new ScoreHolder();
         double score = 0.0;
 
-        for (int i = 0; i < nSize; i++) {
-            double charScore =  getLogPosScoreByChar(p_pPosition, szCor[i], i);
+        int nLen = szCor.length;
+        for (int i = 0; i < nLen; i++) {
+            double charScore = getLogPosScoreByChar(p_pPosition, szCor[i], i);
             scoreHolder.chars[i] = charScore;
             score += charScore;
         }
