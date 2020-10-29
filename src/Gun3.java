@@ -172,9 +172,9 @@ public class Gun3 {
 //        System.out.println((end - start) / 1000);
     }
 
-    static void buildModelScores(String arg) throws IOException {
+    static void buildModelScores(String path) throws IOException {
 
-        byte[] bytes = Files.readAllBytes(Path.of(arg));
+        byte[] bytes = Files.readAllBytes(Path.of(path));
 
         charLM = new float[bytes.length / 4];
         ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
@@ -212,13 +212,13 @@ public class Gun3 {
 
         char[] chars = input.toCharArray();
 
+        logScores = new double[63][26];
+
         Holder holder = getScore(modelScores, pPosition, chars);
 
         int nInputLen = chars.length;
 
         int k = nInputLen < 4 ? nInputLen : 4;
-
-        logScores = new double[63][26];
 
         Pair best = new Pair(holder.score, input);
 
