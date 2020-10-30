@@ -53,7 +53,6 @@ public class Gun3 {
     static double[][] gaussianX = new double[26][300];
     static double[][] gaussianY = new double[26][300];
 
-
     static double[][] logScores;
 
     static String preInput = " ";
@@ -133,13 +132,13 @@ public class Gun3 {
             byteBuffer.rewind().order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(lineBuffer);
             pos = 0;
 
-            if (lineBuffer.length > 20 * 2) {
-                String input = getInputStr(lineBuffer);
-                System.out.println(input);
-            } else {
+//            if (lineBuffer.length > 20 * 2) {
+//                String input = getInputStr(lineBuffer);
+//                System.out.println(input);
+//            } else {
                 String result = exhaustiveSearch(lineBuffer);
                 System.out.println(result);
-            }
+//            }
         } while (c > 0);
 
 //        long end = System.currentTimeMillis();
