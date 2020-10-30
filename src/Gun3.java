@@ -54,8 +54,6 @@ public class Gun3 {
 
     static String preInput = " ";
 
-    static char[] szNewCor = new char[128];
-
     static class Pair {
         double score;
         String better;
@@ -95,45 +93,11 @@ public class Gun3 {
         }
     }
 
-    static class HolderBak {
-
-        double[] lm;
-        double pos;
-
-        double lmScore;
-
-        double posScore;
-
-        double score;
-
-        public HolderBak(Holder holder, int idx) {
-            lm = new double[4];
-            System.arraycopy(holder.lm.chars, idx, lm, 0, 4);
-            pos = holder.pos.chars[idx];
-            lmScore = holder.lm.score;
-            posScore = holder.pos.score;
-            score = holder.score;
-        }
-
-
-        void Restore(Holder cln, int idx) {
-            cln.score = this.score;
-            cln.lm.score = this.lmScore;
-            cln.pos.score = this.posScore;
-            System.arraycopy(lm, 0, cln.lm.chars, idx, 4);
-            cln.pos.chars[idx] = pos;
-        }
-    }
-
     public static void main(String[] args) throws IOException, InterruptedException {
 
 //        Thread.sleep(15000);
 
 //        long start = System.currentTimeMillis();
-
-        szNewCor[0] = '`';
-        szNewCor[1] = '`';
-        szNewCor[2] = '`';
 
         buildNearLetters();
 
@@ -141,6 +105,7 @@ public class Gun3 {
 
         byte[] buffer = new byte[2];
         ByteBuffer byteBuffer = ByteBuffer.allocate(LINEBUFSIZE);
+
         short[] lineBuffer;
 
         BufferedInputStream reader = new BufferedInputStream(System.in);
@@ -242,7 +207,6 @@ public class Gun3 {
             for (; p < pPosition.length; p += 2) {
                 int cIdx = p / 2;
                 char bak = buf[cIdx];
-                HolderBak bakHolder = new HolderBak(holder, cIdx);
                 int idx = bak - 'a';
                 char[] nears = nearLetters[idx];
                 for (int i = 0; i < nears.length; i++) {
@@ -257,8 +221,7 @@ public class Gun3 {
                     exhaustiveSearch_i(pPosition, p + 2, k - 1, buf, best, holder);
                 }
                 buf[cIdx] = bak;
-//                changeScore(modelScores, pPosition, buf, holder, cIdx);
-                bakHolder.Restore(holder, cIdx);
+                changeScore(modelScores, pPosition, buf, holder, cIdx);
             }
         }
     }
@@ -287,12 +250,11 @@ public class Gun3 {
     static void changeLogLMScore(double[] modelScore, char[] szCor, ScoreHolder scoreHolder, int idx) {
 
         int nLen = szCor.length;
-        System.arraycopy(szCor, 0, szNewCor, 3, nLen);
 
         for (int i = idx; i < idx + 4; ++i) {
             if (i >= nLen)
                 break;
-            double charScore = getLMScoreByChar(modelScore, szNewCor, i);
+            double charScore = getLMScoreByChar(modelScore, szCor, i);
             scoreHolder.score = scoreHolder.score - scoreHolder.chars[i] + charScore;
             scoreHolder.chars[i] = charScore;
         }
@@ -304,10 +266,9 @@ public class Gun3 {
         double score = 0.0;
 
         int nLen = szCor.length;
-        System.arraycopy(szCor, 0, szNewCor, 3, nLen);
 
         for (int i = 0; i < nLen; ++i) {
-            double charScore = getLMScoreByChar(modelScore, szNewCor, i);
+            double charScore = getLMScoreByChar(modelScore, szCor, i);
             scoreHolder.chars[i] = charScore;
             score += charScore;
         }
@@ -317,10 +278,26 @@ public class Gun3 {
 
     static double getLMScoreByChar(double[] modelScore, char[] szCor, int i) {
         int idx;
-        idx = (szCor[i] - '`') * (27 * 27 * 27);
-        idx += (szCor[i + 1] - '`') * (27 * 27);
-        idx += (szCor[i + 2] - '`') * 27;
-        idx += szCor[i + 3] - '`';
+        switch (i) {
+            case 0:
+                idx = szCor[i] - '`';
+                break;
+            case 1:
+                idx = (szCor[i - 1] - '`') * 27;
+                idx += szCor[i] - '`';
+                break;
+            case 2:
+                idx = (szCor[i - 2] - '`') * (27 * 27);
+                idx += (szCor[i - 1] - '`') * 27;
+                idx += szCor[i] - '`';
+                break;
+            default:
+                idx = (szCor[i - 3] - '`') * (27 * 27 * 27);
+                idx += (szCor[i - 2] - '`') * (27 * 27);
+                idx += (szCor[i - 1] - '`') * 27;
+                idx += szCor[i] - '`';
+                break;
+        }
         return modelScore[idx];
     }
 
