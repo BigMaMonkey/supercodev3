@@ -50,6 +50,10 @@ public class Gun3 {
 
     static char[][] nearLetters = new char[26][26];
 
+    static double[][] gaussianX = new double[26][300];
+    static double[][] gaussianY = new double[26][300];
+
+
     static double[][] logScores;
 
     static String preInput = " ";
@@ -101,6 +105,8 @@ public class Gun3 {
 
         buildNearLetters();
 
+        buildGaussianXs();
+
         buildModelScores(args[0]);
 
         byte[] buffer = new byte[2];
@@ -127,9 +133,13 @@ public class Gun3 {
             byteBuffer.rewind().order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(lineBuffer);
             pos = 0;
 
-            String result = exhaustiveSearch(lineBuffer);
-            System.out.println(result);
-
+            if (lineBuffer.length > 20 * 2) {
+                String input = getInputStr(lineBuffer);
+                System.out.println(input);
+            } else {
+                String result = exhaustiveSearch(lineBuffer);
+                System.out.println(result);
+            }
         } while (c > 0);
 
 //        long end = System.currentTimeMillis();
@@ -167,6 +177,15 @@ public class Gun3 {
                 }
             }
             nearLetters[i][idx++] = '0';
+        }
+    }
+
+    static void buildGaussianXs() {
+        for (int i = 0; i < 26; i++) {
+            for (int j = 0; j < 300; j++) {
+                gaussianX[i][j] = calculateGaussian(XStd[i], j);
+                gaussianY[i][j] = calculateGaussian(YStd[i], j);
+            }
         }
     }
 
@@ -324,16 +343,20 @@ public class Gun3 {
 
     static double getLogPosScoreByChar(short[] p_pPosition, char c, int i) {
         double score = 0.0;
-        int nCharNo = c - 'a';
+        int idx = c - 'a';
 
-        if (logScores[i][nCharNo] != 0) {
-            score = logScores[i][nCharNo];
+        if (logScores[i][idx] != 0) {
+            score = logScores[i][idx];
         } else {
             float sRelativeX = absToRelativeX(c, p_pPosition[i * 2]);
             float sRelativeY = absToRelativeY(c, p_pPosition[i * 2 + 1]);
-            score += calculateGaussian(XStd[nCharNo], sRelativeX);
-            score += calculateGaussian(YStd[nCharNo], sRelativeY);
-            logScores[i][nCharNo] = score;
+            int sx = (int)Math.abs(sRelativeX);
+            int sy = (int)Math.abs(sRelativeY);
+
+            score += gaussianX[idx][sx];
+            score += gaussianY[idx][sy];
+
+            logScores[i][idx] = score;
         }
         return score;
     }
