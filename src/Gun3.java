@@ -53,7 +53,7 @@ public class Gun3 {
     static double[][] gaussianX = new double[26][300];
     static double[][] gaussianY = new double[26][300];
     
-    static double[][] logScores;
+    static double[][] posCharScores;
 
     static String preInput = " ";
 
@@ -194,7 +194,7 @@ public class Gun3 {
 
         char[] chars = input.toCharArray();
 
-        logScores = new double[63][26];
+        posCharScores = new double[63][26];
 
         Holder holder = getScore(modelScores, pPosition, chars);
 
@@ -344,8 +344,8 @@ public class Gun3 {
         double score = 0.0;
         int idx = c - 'a';
 
-        if (logScores[i][idx] != 0) {
-            score = logScores[i][idx];
+        if (posCharScores[i][idx] != 0) {
+            score = posCharScores[i][idx];
         } else {
             float sRelativeX = absToRelativeX(c, p_pPosition[i * 2]);
             float sRelativeY = absToRelativeY(c, p_pPosition[i * 2 + 1]);
@@ -355,7 +355,7 @@ public class Gun3 {
             score += gaussianX[idx][sx];
             score += gaussianY[idx][sy];
 
-            logScores[i][idx] = score;
+            posCharScores[i][idx] = score;
         }
         return score;
     }
