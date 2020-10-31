@@ -52,7 +52,7 @@ public class Gun3 {
 
     static double[][] gaussianX = new double[26][300];
     static double[][] gaussianY = new double[26][300];
-
+    
     static double[][] logScores;
 
     static String preInput = " ";
@@ -136,8 +136,8 @@ public class Gun3 {
 //                String input = getInputStr(lineBuffer);
 //                System.out.println(input);
 //            } else {
-                String result = exhaustiveSearch(lineBuffer);
-                System.out.println(result);
+            String result = exhaustiveSearch(lineBuffer);
+            System.out.println(result);
 //            }
         } while (c > 0);
 
