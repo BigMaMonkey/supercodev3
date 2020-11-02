@@ -283,8 +283,9 @@ public class Gun3 {
     }
 
     static boolean filterByDistance(short x1, short y1, char newCh) {
-        int x2 = aanLetterEdge[newCh - 'a'][4];
-        int y2 = aanLetterEdge[newCh - 'a'][5];
+        int idx = newCh - 'a';
+        int x2 = aanLetterEdge[idx][4];
+        int y2 = aanLetterEdge[idx][5];
         return calcDistance(x1, y1, x2, y2) > 50000;
     }
 
