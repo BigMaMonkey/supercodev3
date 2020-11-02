@@ -56,6 +56,7 @@ public class Gun3 {
     static double[][] posCharScores;
 
     static String preInput = " ";
+    static Holder preHolder;
 
     static class Pair {
         double score;
@@ -76,6 +77,13 @@ public class Gun3 {
             this.score = 0;
             this.chars = new double[63];
         }
+
+        ScoreHolder copy() {
+            ScoreHolder cln = new ScoreHolder();
+            cln.score = this.score;
+            System.arraycopy(this.chars, 0, cln.chars, 0, this.chars.length);
+            return cln;
+        }
     }
 
     static class Holder {
@@ -85,6 +93,9 @@ public class Gun3 {
 
         double score;
 
+        private Holder() {
+        }
+
         public Holder(ScoreHolder lm, ScoreHolder pos) {
             this.lm = lm;
             this.pos = pos;
@@ -93,6 +104,14 @@ public class Gun3 {
 
         void caleScore() {
             score = pos.score + lm.score * 4.5;
+        }
+
+        Holder copy() {
+            Holder cln = new Holder();
+            cln.score = this.score;
+            cln.lm = this.lm.copy();
+            cln.pos = this.pos.copy();
+            return cln;
         }
     }
 
@@ -132,13 +151,13 @@ public class Gun3 {
             byteBuffer.rewind().order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(lineBuffer);
             pos = 0;
 
-//            if (lineBuffer.length > 20 * 2) {
-//                String input = getInputStr(lineBuffer);
-//                System.out.println(input);
-//            } else {
-            String result = exhaustiveSearch(lineBuffer);
-            System.out.println(result);
-//            }
+            if (lineBuffer.length > 20 * 2) {
+                String input = getInputStr(lineBuffer);
+                System.out.println(input);
+            } else {
+                String result = exhaustiveSearch(lineBuffer);
+                System.out.println(result);
+            }
         } while (c > 0);
 
 //        long end = System.currentTimeMillis();
@@ -194,9 +213,18 @@ public class Gun3 {
 
         char[] chars = input.toCharArray();
 
-        posCharScores = new double[63][26];
+        Holder holder;
 
-        Holder holder = getScore(modelScores, pPosition, chars);
+        if (input.length() == preInput.length() + 1
+            && input.startsWith(preInput)) {
+            holder = preHolder;
+            changeScore(modelScores, pPosition, chars, holder, chars.length - 1);
+            preHolder = holder.copy();
+        } else {
+            posCharScores = new double[63][26];
+            holder = getScore(modelScores, pPosition, chars);
+            preHolder = holder.copy();
+        }
 
         int nInputLen = chars.length;
 
