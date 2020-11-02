@@ -48,11 +48,13 @@ public class Gun3 {
             {167, 273, 348, 177, 220, 262}
     };
 
-    static char[][] nearLetters = new char[26][26];
+    static char[][] nearLettersMore = new char[26][26];
+
+    static char[][] nearLettersLess = new char[26][26];
 
     static double[][] gaussianX = new double[26][300];
     static double[][] gaussianY = new double[26][300];
-    
+
     static double[][] posCharScores;
 
     static String preInput = " ";
@@ -69,7 +71,6 @@ public class Gun3 {
     }
 
     static class ScoreHolder {
-
         double[] chars;
         double score;
 
@@ -119,7 +120,7 @@ public class Gun3 {
 
 //        Thread.sleep(15000);
 
-//        long start = System.currentTimeMillis();
+        long start = System.currentTimeMillis();
 
         buildNearLetters();
 
@@ -151,17 +152,19 @@ public class Gun3 {
             byteBuffer.rewind().order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(lineBuffer);
             pos = 0;
 
-            if (lineBuffer.length > 20 * 2) {
-                String input = getInputStr(lineBuffer);
-                System.out.println(input);
+            char[][] nearLetters;
+            if (lineBuffer.length > 15 * 2) {
+                nearLetters = nearLettersLess;
             } else {
-                String result = exhaustiveSearch(lineBuffer);
-                System.out.println(result);
+                nearLetters = nearLettersMore;
             }
+            String result = exhaustiveSearch(nearLetters, lineBuffer);
+            System.out.println(result);
+
         } while (c > 0);
 
-//        long end = System.currentTimeMillis();
-//        System.out.println((end - start) / 1000);
+        long end = System.currentTimeMillis();
+        System.out.println((end - start) / 1000);
     }
 
     static void buildModelScores(String path) throws IOException {
@@ -184,17 +187,25 @@ public class Gun3 {
 
     static void buildNearLetters() {
         for (int i = 0; i < aanLetterEdge.length; i++) {
-            int idx = 0;
+            int idxMore = 0, idxLess = 0;
             for (int j = 0; j < aanLetterEdge.length; j++) {
                 if (i == j) {
                     continue;
                 }
-                if (!calcDistance(aanLetterEdge[i][4], aanLetterEdge[i][5],
-                        aanLetterEdge[j][4], aanLetterEdge[j][5], 80000)) {
-                    nearLetters[i][idx++] = (char) ('a' + j);
+                int distance = calcDistance(aanLetterEdge[i][4], aanLetterEdge[i][5],
+                        aanLetterEdge[j][4], aanLetterEdge[j][5]);
+
+                char c = (char) ('a' + j);
+
+                if (distance < 80000) {
+                    nearLettersMore[i][idxMore++] = c;
+                    if (distance < 50000) {
+                        nearLettersLess[i][idxLess++] = c;
+                    }
                 }
             }
-            nearLetters[i][idx++] = '0';
+            nearLettersMore[i][idxMore++] = '0';
+            nearLettersLess[i][idxLess++] = '0';
         }
     }
 
@@ -207,7 +218,7 @@ public class Gun3 {
         }
     }
 
-    static String exhaustiveSearch(short[] pPosition) {
+    static String exhaustiveSearch(char[][] nearLetters, short[] pPosition) {
 
         String input = getInputStr(pPosition);
 
@@ -215,8 +226,7 @@ public class Gun3 {
 
         Holder holder;
 
-        if (input.length() == preInput.length() + 1
-            && input.startsWith(preInput)) {
+        if (input.length() == preInput.length() + 1 && input.startsWith(preInput)) {
             holder = preHolder;
             changeScore(modelScores, pPosition, chars, holder, chars.length - 1);
             preHolder = holder.copy();
@@ -232,14 +242,14 @@ public class Gun3 {
 
         Pair best = new Pair(holder.score, input);
 
-        exhaustiveSearch_i(pPosition, 0, k, chars, best, holder);
+        exhaustiveSearch_i(nearLetters, pPosition, 0, k, chars, best, holder);
 
         preInput = input;
 
         return best.better;
     }
 
-    static void exhaustiveSearch_i(short[] pPosition, int p, int k, char[] buf, Pair best, Holder holder) {
+    static void exhaustiveSearch_i(char[][] nearLetters, short[] pPosition, int p, int k, char[] buf, Pair best, Holder holder) {
         if (k == 0 || p == pPosition.length) {
             if (holder.score > best.score) {
                 best.score = holder.score;
@@ -264,7 +274,7 @@ public class Gun3 {
                     }
                     buf[cIdx] = nears[i];
                     changeScore(modelScores, pPosition, buf, holder, cIdx);
-                    exhaustiveSearch_i(pPosition, p + 2, k - 1, buf, best, holder);
+                    exhaustiveSearch_i(nearLetters, pPosition, p + 2, k - 1, buf, best, holder);
                 }
                 buf[cIdx] = bak;
                 changeScore(modelScores, pPosition, buf, holder, cIdx);
@@ -275,12 +285,11 @@ public class Gun3 {
     static boolean filterByDistance(short x1, short y1, char newCh) {
         int x2 = aanLetterEdge[newCh - 'a'][4];
         int y2 = aanLetterEdge[newCh - 'a'][5];
-        return calcDistance(x1, y1, x2, y2, 50000);
+        return calcDistance(x1, y1, x2, y2) > 50000;
     }
 
-    static boolean calcDistance(int x1, int y1, int x2, int y2, int distance) {
-        int temp = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
-        return temp > distance;
+    static int calcDistance(int x1, int y1, int x2, int y2) {
+        return (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
     }
 
     static void changeScore(double[] modelScore, short[] pPosition, char[] str, Holder holder, int idx) {
