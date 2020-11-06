@@ -7,13 +7,15 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Gun3 {
 
     static float[] charLM;
     static double[] modelScores;
 
-    static int LINEBUFSIZE = 65 * 2 * 2;
+    static int LINE_BUF_SIZE = 65 * 2 * 2;
 
     static double[] XStd = {14.89, 18.81, 19.56, 18.07, 19.13, 20.92, 18.05, 17.86, 18.56, 17.82, 19.42, 14.12, 19.83, 18.53, 19.38, 18.66, 18.30, 21.39, 19.01, 18.83, 19.44, 24.72, 19.16, 19.00, 17.83, 19.59};
 
@@ -50,19 +52,17 @@ public class Gun3 {
 
     static char[][] nearLettersMore = new char[26][26];
 
-    static char[][] nearLettersLess = new char[26][26];
-
     static double[][] gaussianX = new double[26][300];
     static double[][] gaussianY = new double[26][300];
 
     static double[][] posCharScores;
 
     static String preInput = " ";
-    static Holder preHolder;
 
     static class Pair {
         double score;
         String better;
+        int num;
 
         public Pair(double score, String better) {
             this.score = score;
@@ -129,12 +129,12 @@ public class Gun3 {
         buildModelScores(args[0]);
 
         byte[] buffer = new byte[2];
-        ByteBuffer byteBuffer = ByteBuffer.allocate(LINEBUFSIZE);
+        ByteBuffer byteBuffer = ByteBuffer.allocate(LINE_BUF_SIZE);
 
         short[] lineBuffer;
 
         BufferedInputStream reader = new BufferedInputStream(System.in);
-        int c = -1, pos = 0;
+        int c, pos = 0;
         do {
             while ((c = reader.read(buffer, 0, 2)) >= 0) {
                 if (buffer[0] == 0 && buffer[1] == 0 && (pos = byteBuffer.position()) % 4 == 0) {
@@ -153,13 +153,13 @@ public class Gun3 {
             pos = 0;
 
             char[][] nearLetters;
-            if (lineBuffer.length > 15 * 2) {
-                nearLetters = nearLettersLess;
-            } else {
-                nearLetters = nearLettersMore;
-            }
+//            if (lineBuffer.length > 15 * 2) {
+//                nearLetters = nearLettersLess;
+//            } else {
+            nearLetters = nearLettersMore;
+//            }
             String result = exhaustiveSearch(nearLetters, lineBuffer);
-            System.out.println(result);
+            // System.out.println(result);
 
         } while (c > 0);
 
@@ -187,7 +187,8 @@ public class Gun3 {
 
     static void buildNearLetters() {
         for (int i = 0; i < aanLetterEdge.length; i++) {
-            int idxMore = 0, idxLess = 0;
+            int idxMore = 0;
+            nearLettersMore[i][idxMore++] = (char) ('a' + i);
             for (int j = 0; j < aanLetterEdge.length; j++) {
                 if (i == j) {
                     continue;
@@ -199,13 +200,8 @@ public class Gun3 {
 
                 if (distance < 80000) {
                     nearLettersMore[i][idxMore++] = c;
-                    if (distance < 50000) {
-                        nearLettersLess[i][idxLess++] = c;
-                    }
                 }
             }
-            nearLettersMore[i][idxMore++] = '0';
-            nearLettersLess[i][idxLess++] = '0';
         }
     }
 
@@ -224,29 +220,84 @@ public class Gun3 {
 
         char[] chars = input.toCharArray();
 
-        Holder holder;
-
-        if (input.length() == preInput.length() + 1 && input.startsWith(preInput)) {
-            holder = preHolder;
-            changeScore(modelScores, pPosition, chars, holder, chars.length - 1);
-            preHolder = holder.copy();
-        } else {
-            posCharScores = new double[63][26];
-            holder = getScore(modelScores, pPosition, chars);
-            preHolder = holder.copy();
-        }
-
         int nInputLen = chars.length;
+
+        posCharScores = new double[26][26];
 
         int k = nInputLen < 4 ? nInputLen : 4;
 
-        Pair best = new Pair(holder.score, input);
-
-        exhaustiveSearch_i(nearLetters, pPosition, 0, k, chars, best, holder);
+        Pair best = exhaustiveSearch_dp(nearLetters, pPosition, k, chars);
 
         preInput = input;
 
         return best.better;
+    }
+
+    static Pair exhaustiveSearch_dp(char[][] nearLetters, short[] pPosition, int k, char[] buf) {
+
+        char[][] build = new char[buf.length][14];
+
+        List<Pair> cache = new ArrayList<>();
+
+        int id = 0;
+        for (int i = buf.length - 1; i >= 0; i--) {
+            int idx = buf[i] - 'a';
+            build[id] = nearLetters[idx];
+        }
+
+        char[] cr = new char[1];
+        char[] last = build[build.length - 1];
+        for (int i = 0; i < last.length; i++) {
+//            if ()
+            cr[0] = last[i];
+//            if () {
+//
+//            }
+            double score = getLMScoreByChar(modelScores, cr, 0) * 4.5 + getLogPosScoreByChar(pPosition, last[i], 0);
+
+            Pair pair = new Pair(score, String.valueOf(last[i]));
+            if (i == 0) {
+                pair.num = 1;
+            }
+            cache.add(pair);
+        }
+
+        int f = 0;
+        Pair best = new Pair(- 99999999, "");
+        for (int i = build.length - 1; i >= 0 ; i--) {
+            List<Pair> temp = new ArrayList<>();
+            for (int j = 0; j < build[i].length; j++) {
+                for (Pair pair : cache) {
+                    if (j == 0 && pair.num >= k) {
+                        continue;
+                    }
+                    char neo = build[i][j];
+                    if (neo == 0) {
+                        continue;
+                    }
+                    char[] crx = (pair.better + neo).toCharArray();
+                    double score = getLMScoreByChar(modelScores, crx, f) * 4.5 + getLogPosScoreByChar(pPosition, neo, f);
+                    Pair m = new Pair(score + pair.score, pair.better + neo);
+                    m.num = pair.num;
+                    if (j == 0) {
+                        m.num += 1;
+                    }
+                    if (i == 0) {
+                        if (m.score > best.score) {
+                            best.score = m.score;
+                            best.better = m.better;
+                        }
+                    } else {
+                        temp.add(m);
+                    }
+                }
+            }
+            cache.clear();
+            cache = temp;
+            f++;
+        }
+
+        return best;
     }
 
     static void exhaustiveSearch_i(char[][] nearLetters, short[] pPosition, int p, int k, char[] buf, Pair best, Holder holder) {
